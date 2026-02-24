@@ -118,8 +118,8 @@ func newRaftNode(id int, peers []string, join bool, getSnapshot func() ([]byte, 
 
 func (rc *raftNode) saveSnap(snap raftpb.Snapshot) error {
 	walSnap := walpb.Snapshot{
-		Index:     new(snap.Metadata.Index),
-		Term:      new(snap.Metadata.Term),
+		Index:     toPtr(snap.Metadata.Index),
+		Term:      toPtr(snap.Metadata.Term),
 		ConfState: &snap.Metadata.ConfState,
 	}
 	// save the snapshot file before writing the snapshot to the wal.
@@ -232,7 +232,7 @@ func (rc *raftNode) openWAL(snapshot *raftpb.Snapshot) *wal.WAL {
 
 	walsnap := walpb.Snapshot{}
 	if snapshot != nil {
-		walsnap.Index, walsnap.Term = new(snapshot.Metadata.Index), new(snapshot.Metadata.Term)
+		walsnap.Index, walsnap.Term = toPtr(snapshot.Metadata.Index), toPtr(snapshot.Metadata.Term)
 	}
 	log.Printf("loading WAL at term %d and index %d", walsnap.GetTerm(), walsnap.GetIndex())
 	w, err := wal.Open(zap.NewExample(), rc.waldir, walsnap)
@@ -524,3 +524,7 @@ func (rc *raftNode) ReportUnreachable(id uint64) { rc.node.ReportUnreachable(id)
 func (rc *raftNode) ReportSnapshot(id uint64, status raft.SnapshotStatus) {
 	rc.node.ReportSnapshot(id, status)
 }
+
+// toPtr returns a pointer to the given value.
+// TODO: remove after upgrading to Go 1.26 which supports new(expr).
+func toPtr[T any](v T) *T { return &v }

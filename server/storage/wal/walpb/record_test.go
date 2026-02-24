@@ -38,9 +38,9 @@ func TestValidateSnapshot(t *testing.T) {
 		wantErr bool
 	}{
 		{name: "empty", snap: &Snapshot{}, wantErr: true}, // index and term must be explicitly set
-		{name: "initial", snap: &Snapshot{Index: new(uint64(0)), Term: new(uint64(0))}, wantErr: false},
-		{name: "invalid", snap: &Snapshot{Index: new(uint64(5)), Term: new(uint64(3))}, wantErr: true},
-		{name: "valid", snap: &Snapshot{Index: new(uint64(5)), Term: new(uint64(3)), ConfState: &raftpb.ConfState{Voters: []uint64{0x00cad1}}}, wantErr: false},
+		{name: "initial", snap: &Snapshot{Index: toPtr(uint64(0)), Term: toPtr(uint64(0))}, wantErr: false},
+		{name: "invalid", snap: &Snapshot{Index: toPtr(uint64(5)), Term: toPtr(uint64(3))}, wantErr: true},
+		{name: "valid", snap: &Snapshot{Index: toPtr(uint64(5)), Term: toPtr(uint64(3)), ConfState: &raftpb.ConfState{Voters: []uint64{0x00cad1}}}, wantErr: false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -50,3 +50,7 @@ func TestValidateSnapshot(t *testing.T) {
 		})
 	}
 }
+
+// toPtr returns a pointer to the given value.
+// TODO: remove after upgrading to Go 1.26 which supports new(expr).
+func toPtr[T any](v T) *T { return &v }

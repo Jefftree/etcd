@@ -40,23 +40,23 @@ func TestGetLatestWalSnap(t *testing.T) {
 		{
 			name: "wal snapshot records match the snapshot files",
 			walSnaps: []walpb.Snapshot{
-				{Index: new(uint64(10)), Term: new(uint64(2))},
-				{Index: new(uint64(20)), Term: new(uint64(3))},
-				{Index: new(uint64(30)), Term: new(uint64(5))},
+				{Index: toPtr(uint64(10)), Term: toPtr(uint64(2))},
+				{Index: toPtr(uint64(20)), Term: toPtr(uint64(3))},
+				{Index: toPtr(uint64(30)), Term: toPtr(uint64(5))},
 			},
 			snapshots: []raftpb.Snapshot{
 				{Metadata: raftpb.SnapshotMetadata{Index: 10, Term: 2}},
 				{Metadata: raftpb.SnapshotMetadata{Index: 20, Term: 3}},
 				{Metadata: raftpb.SnapshotMetadata{Index: 30, Term: 5}},
 			},
-			expectedLatestWALSnap: walpb.Snapshot{Index: new(uint64(30)), Term: new(uint64(5))},
+			expectedLatestWALSnap: walpb.Snapshot{Index: toPtr(uint64(30)), Term: toPtr(uint64(5))},
 		},
 		{
 			name: "there are orphan snapshot files",
 			walSnaps: []walpb.Snapshot{
-				{Index: new(uint64(10)), Term: new(uint64(2))},
-				{Index: new(uint64(20)), Term: new(uint64(3))},
-				{Index: new(uint64(35)), Term: new(uint64(5))},
+				{Index: toPtr(uint64(10)), Term: toPtr(uint64(2))},
+				{Index: toPtr(uint64(20)), Term: toPtr(uint64(3))},
+				{Index: toPtr(uint64(35)), Term: toPtr(uint64(5))},
 			},
 			snapshots: []raftpb.Snapshot{
 				{Metadata: raftpb.SnapshotMetadata{Index: 10, Term: 2}},
@@ -65,7 +65,7 @@ func TestGetLatestWalSnap(t *testing.T) {
 				{Metadata: raftpb.SnapshotMetadata{Index: 40, Term: 6}},
 				{Metadata: raftpb.SnapshotMetadata{Index: 50, Term: 7}},
 			},
-			expectedLatestWALSnap: walpb.Snapshot{Index: new(uint64(35)), Term: new(uint64(5))},
+			expectedLatestWALSnap: walpb.Snapshot{Index: toPtr(uint64(35)), Term: toPtr(uint64(5))},
 		},
 	}
 
@@ -81,8 +81,8 @@ func TestGetLatestWalSnap(t *testing.T) {
 			// populate wal file
 			w, err := wal.Create(lg, datadir.ToWALDir(dataDir), pbutil.MustMarshal(
 				&etcdserverpb.Metadata{
-					NodeID:    new(uint64(1)),
-					ClusterID: new(uint64(2)),
+					NodeID:    toPtr(uint64(1)),
+					ClusterID: toPtr(uint64(2)),
 				},
 			))
 			require.NoError(t, err)
@@ -113,3 +113,7 @@ func TestGetLatestWalSnap(t *testing.T) {
 		})
 	}
 }
+
+// toPtr returns a pointer to the given value.
+// TODO: remove after upgrading to Go 1.26 which supports new(expr).
+func toPtr[T any](v T) *T { return &v }

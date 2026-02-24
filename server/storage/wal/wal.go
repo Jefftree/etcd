@@ -166,11 +166,11 @@ func Create(lg *zap.Logger, dirpath string, metadata []byte) (*WAL, error) {
 	if err = w.saveCrc(0); err != nil {
 		return nil, err
 	}
-	if err = w.encoder.encode(&walpb.Record{Type: new(MetadataType), Data: metadata}); err != nil {
+	if err = w.encoder.encode(&walpb.Record{Type: toPtr(MetadataType), Data: metadata}); err != nil {
 		return nil, err
 	}
 	// Create an empty snapshot record during the initial bootstrap only.
-	if err = w.SaveSnapshot(walpb.Snapshot{Index: new(uint64(0)), Term: new(uint64(0))}); err != nil {
+	if err = w.SaveSnapshot(walpb.Snapshot{Index: toPtr(uint64(0)), Term: toPtr(uint64(0))}); err != nil {
 		return nil, err
 	}
 
@@ -778,7 +778,7 @@ func (w *WAL) cut() error {
 		return err
 	}
 
-	if err = w.encoder.encode(&walpb.Record{Type: new(MetadataType), Data: w.metadata}); err != nil {
+	if err = w.encoder.encode(&walpb.Record{Type: toPtr(MetadataType), Data: w.metadata}); err != nil {
 		return err
 	}
 
@@ -935,7 +935,7 @@ func (w *WAL) Close() error {
 func (w *WAL) saveEntry(e *raftpb.Entry) error {
 	// TODO: add MustMarshalTo to reduce one allocation.
 	b := pbutil.MustMarshal(e)
-	rec := &walpb.Record{Type: new(EntryType), Data: b}
+	rec := &walpb.Record{Type: toPtr(EntryType), Data: b}
 	if err := w.encoder.encode(rec); err != nil {
 		return err
 	}
@@ -949,7 +949,7 @@ func (w *WAL) saveState(s *raftpb.HardState) error {
 	}
 	w.state = *s
 	b := pbutil.MustMarshal(s)
-	rec := &walpb.Record{Type: new(StateType), Data: b}
+	rec := &walpb.Record{Type: toPtr(StateType), Data: b}
 	return w.encoder.encode(rec)
 }
 
@@ -1001,7 +1001,7 @@ func (w *WAL) SaveSnapshot(e walpb.Snapshot) error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
-	rec := &walpb.Record{Type: new(SnapshotType), Data: b}
+	rec := &walpb.Record{Type: toPtr(SnapshotType), Data: b}
 	if err := w.encoder.encode(rec); err != nil {
 		return err
 	}
@@ -1013,7 +1013,7 @@ func (w *WAL) SaveSnapshot(e walpb.Snapshot) error {
 }
 
 func (w *WAL) saveCrc(prevCrc uint32) error {
-	return w.encoder.encode(&walpb.Record{Type: new(CrcType), Crc: &prevCrc})
+	return w.encoder.encode(&walpb.Record{Type: toPtr(CrcType), Crc: &prevCrc})
 }
 
 func (w *WAL) tail() *fileutil.LockedFile {

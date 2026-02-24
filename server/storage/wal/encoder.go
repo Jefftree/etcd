@@ -70,7 +70,7 @@ func (e *encoder) encode(rec *walpb.Record) error {
 	defer e.mu.Unlock()
 
 	e.crc.Write(rec.Data)
-	rec.Crc = new(e.crc.Sum32())
+	rec.Crc = toPtr(e.crc.Sum32())
 	var (
 		data []byte
 		err  error

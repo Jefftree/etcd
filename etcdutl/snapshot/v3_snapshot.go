@@ -520,7 +520,7 @@ func (s *v3Manager) saveWALAndSnap() (*raftpb.HardState, error) {
 	}
 
 	m := s.cl.MemberByName(s.name) //nolint:staticcheck // See https://github.com/dominikh/go-tools/issues/1698
-	md := &etcdserverpb.Metadata{NodeID: new(uint64(m.ID)), ClusterID: new(uint64(s.cl.ID()))}
+	md := &etcdserverpb.Metadata{NodeID: toPtr(uint64(m.ID)), ClusterID: toPtr(uint64(s.cl.ID()))}
 	metadata, merr := md.Marshal()
 	if merr != nil {
 		return nil, merr
@@ -589,6 +589,10 @@ func (s *v3Manager) saveWALAndSnap() (*raftpb.HardState, error) {
 	snapshot := walpb.Snapshot{Index: &commit, Term: &term, ConfState: &confState}
 	return &hardState, w.SaveSnapshot(snapshot)
 }
+
+// toPtr returns a pointer to the given value.
+// TODO: remove after upgrading to Go 1.26 which supports new(expr).
+func toPtr[T any](v T) *T { return &v }
 
 func (s *v3Manager) updateCIndex(commit uint64, term uint64) error {
 	be := backend.NewDefaultBackend(s.lg, s.outDbPath(), backend.WithMmapSize(s.initialMmapSize))

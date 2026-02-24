@@ -627,7 +627,7 @@ func bootstrapWALFromSnapshot(cfg config.ServerConfig, snapshot *raftpb.Snapshot
 func openWALFromSnapshot(cfg config.ServerConfig, snapshot *raftpb.Snapshot) (*wal.WAL, *raftpb.HardState, []raftpb.Entry, *raftpb.Snapshot, *snapshotMetadata) {
 	var walsnap walpb.Snapshot
 	if snapshot != nil {
-		walsnap.Index, walsnap.Term = new(snapshot.Metadata.Index), new(snapshot.Metadata.Term)
+		walsnap.Index, walsnap.Term = toPtr(snapshot.Metadata.Index), toPtr(snapshot.Metadata.Term)
 	}
 	repaired := false
 	for {
@@ -669,8 +669,8 @@ type snapshotMetadata struct {
 func bootstrapNewWAL(cfg config.ServerConfig, cl *bootstrappedCluster) *bootstrappedWAL {
 	metadata := pbutil.MustMarshal(
 		&etcdserverpb.Metadata{
-			NodeID:    new(uint64(cl.nodeID)),
-			ClusterID: new(uint64(cl.cl.ID())),
+			NodeID:    toPtr(uint64(cl.nodeID)),
+			ClusterID: toPtr(uint64(cl.cl.ID())),
 		},
 	)
 	w, err := wal.Create(cfg.Logger, cfg.WALDir(), metadata)
@@ -746,3 +746,7 @@ func (wal *bootstrappedWAL) AppendAndCommitEntries(ents []raftpb.Entry) {
 		wal.st.Commit = wal.ents[len(wal.ents)-1].Index
 	}
 }
+
+// toPtr returns a pointer to the given value.
+// TODO: remove after upgrading to Go 1.26 which supports new(expr).
+func toPtr[T any](v T) *T { return &v }

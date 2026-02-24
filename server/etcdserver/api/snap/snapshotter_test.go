@@ -180,17 +180,17 @@ func TestLoadNewestSnap(t *testing.T) {
 		},
 		{
 			name:              "loadnewestavailable-newest",
-			availableWALSnaps: []walpb.Snapshot{{Index: new(uint64(0)), Term: new(uint64(0))}, {Index: new(uint64(1)), Term: new(uint64(1))}, {Index: new(uint64(5)), Term: new(uint64(1))}},
+			availableWALSnaps: []walpb.Snapshot{{Index: toPtr(uint64(0)), Term: toPtr(uint64(0))}, {Index: toPtr(uint64(1)), Term: toPtr(uint64(1))}, {Index: toPtr(uint64(5)), Term: toPtr(uint64(1))}},
 			expected:          &newSnap,
 		},
 		{
 			name:              "loadnewestavailable-newest-unsorted",
-			availableWALSnaps: []walpb.Snapshot{{Index: new(uint64(5)), Term: new(uint64(1))}, {Index: new(uint64(1)), Term: new(uint64(1))}, {Index: new(uint64(0)), Term: new(uint64(0))}},
+			availableWALSnaps: []walpb.Snapshot{{Index: toPtr(uint64(5)), Term: toPtr(uint64(1))}, {Index: toPtr(uint64(1)), Term: toPtr(uint64(1))}, {Index: toPtr(uint64(0)), Term: toPtr(uint64(0))}},
 			expected:          &newSnap,
 		},
 		{
 			name:              "loadnewestavailable-previous",
-			availableWALSnaps: []walpb.Snapshot{{Index: new(uint64(0)), Term: new(uint64(0))}, {Index: new(uint64(1)), Term: new(uint64(1))}},
+			availableWALSnaps: []walpb.Snapshot{{Index: toPtr(uint64(0)), Term: toPtr(uint64(0))}, {Index: toPtr(uint64(1)), Term: toPtr(uint64(1))}},
 			expected:          testSnap,
 		},
 	}
@@ -306,3 +306,7 @@ func TestReleaseSnapDBs(t *testing.T) {
 		}
 	}
 }
+
+// toPtr returns a pointer to the given value.
+// TODO: remove after upgrading to Go 1.26 which supports new(expr).
+func toPtr[T any](v T) *T { return &v }

@@ -138,7 +138,7 @@ func readUsingReadAll(lg *zap.Logger, startFromIndex bool, startIndex *uint64, e
 
 		switch {
 		case err == nil:
-			walsnap.Index, walsnap.Term = new(snapshot.Metadata.Index), new(snapshot.Metadata.Term)
+			walsnap.Index, walsnap.Term = toPtr(snapshot.Metadata.Index), toPtr(snapshot.Metadata.Term)
 			nodes := genIDSlice(snapshot.Metadata.ConfState.Voters)
 
 			confStateJSON, merr := json.Marshal(snapshot.Metadata.ConfState)
@@ -439,3 +439,7 @@ func parseDecoderOutput(decoderoutput string) (string, string) {
 	}
 	return decoderStatus, decodedData
 }
+
+// toPtr returns a pointer to the given value.
+// TODO: remove after upgrading to Go 1.26 which supports new(expr).
+func toPtr[T any](v T) *T { return &v }
