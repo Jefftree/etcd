@@ -27,12 +27,23 @@ type RangeOptions struct {
 	Limit int64
 	Rev   int64
 	Count bool
+	// MaxBytes caps the total serialized size of returned KVs. When > 0, the
+	// range read accumulates bytes as it materializes keys from the backend
+	// and stops early once the running total reaches MaxBytes. The KV whose
+	// inclusion crossed the threshold is still returned. When the budget
+	// triggers an early exit before Limit is reached, RangeResult.More is
+	// set to true so callers can detect the truncation.
+	MaxBytes int
 }
 
 type RangeResult struct {
 	KVs   []mvccpb.KeyValue
 	Rev   int64
 	Count int
+	// More is set when the range stopped early because RangeOptions.MaxBytes
+	// was exceeded. It is independent of Limit-based truncation, which
+	// higher layers detect by comparing len(KVs) against the requested limit.
+	More bool
 }
 
 type ReadView interface {

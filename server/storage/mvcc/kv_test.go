@@ -257,6 +257,53 @@ func testKVRangeLimit(t *testing.T, f rangeFunc) {
 	}
 }
 
+func TestKVRangeMaxBytes(t *testing.T)    { testKVRangeMaxBytes(t, normalRangeFunc) }
+func TestKVTxnRangeMaxBytes(t *testing.T) { testKVRangeMaxBytes(t, txnRangeFunc) }
+
+func testKVRangeMaxBytes(t *testing.T, f rangeFunc) {
+	b, _ := betesting.NewDefaultTmpBackend(t)
+	s := NewStore(zaptest.NewLogger(t), b, &lease.FakeLessor{}, StoreConfig{})
+	defer cleanup(s, b)
+
+	kvs := put3TestKVs(s)
+	firstSize := kvs[0].Size()
+	firstTwoSize := kvs[0].Size() + kvs[1].Size()
+	allSize := firstTwoSize + kvs[2].Size()
+
+	tests := []struct {
+		name         string
+		maxBytes     int
+		wantKVs      []mvccpb.KeyValue
+		wantMore     bool
+		wantCount    int
+	}{
+		{"unset budget returns all keys", 0, kvs, false, 3},
+		{"budget triggers after first key", 1, kvs[:1], true, 3},
+		{"budget exactly at first key size triggers", firstSize, kvs[:1], true, 3},
+		{"budget covers first two keys", firstSize + 1, kvs[:2], true, 3},
+		{"budget at sum of first two triggers after second", firstTwoSize, kvs[:2], true, 3},
+		{"budget exactly at total does not set More", allSize, kvs, false, 3},
+		{"budget well above total does not set More", allSize * 10, kvs, false, 3},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r, err := f(s, []byte("foo"), []byte("foo3"), RangeOptions{MaxBytes: tt.maxBytes})
+			if err != nil {
+				t.Fatalf("range error: %v", err)
+			}
+			if !reflect.DeepEqual(r.KVs, tt.wantKVs) {
+				t.Errorf("kvs = %+v, want %+v", r.KVs, tt.wantKVs)
+			}
+			if r.More != tt.wantMore {
+				t.Errorf("more = %v, want %v", r.More, tt.wantMore)
+			}
+			if r.Count != tt.wantCount {
+				t.Errorf("count = %d, want %d", r.Count, tt.wantCount)
+			}
+		})
+	}
+}
+
 func TestKVPutMultipleTimes(t *testing.T)    { testKVPutMultipleTimes(t, normalPutFunc) }
 func TestKVTxnPutMultipleTimes(t *testing.T) { testKVPutMultipleTimes(t, txnPutFunc) }
 

@@ -143,6 +143,9 @@ func asembleRangeResponse(rr *mvcc.RangeResult, r *pb.RangeRequest) *pb.RangeRes
 		rr.KVs = rr.KVs[:r.Limit]
 		resp.More = true
 	}
+	if rr.More {
+		resp.More = true
+	}
 	resp.Header.Revision = rr.Rev
 	resp.Count = int64(rr.Count)
 	resp.Kvs = make([]*mvccpb.KeyValue, len(rr.KVs))
