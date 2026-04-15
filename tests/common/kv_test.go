@@ -111,6 +111,9 @@ func TestKVGet(t *testing.T) {
 					{name: "Get one specific key (a)", begin: "a", wantResponse: &clientv3.GetResponse{Header: currentHeader, Count: 1, Kvs: []*mvccpb.KeyValue{kvA}}},
 					{name: "Get one specific key (a), serializable", begin: "a", options: config.GetOptions{Serializable: true}, wantResponse: &clientv3.GetResponse{Header: currentHeader, Count: 1, Kvs: []*mvccpb.KeyValue{kvA}}},
 					{name: "Get [a, c)", begin: "a", options: config.GetOptions{End: "c"}, wantResponse: &clientv3.GetResponse{Header: currentHeader, Count: 2, Kvs: []*mvccpb.KeyValue{kvA, kvB}}},
+					{name: "Empty range: gap in keyspace [x, z)", begin: "x", options: config.GetOptions{End: "z"}, wantResponse: &clientv3.GetResponse{Header: currentHeader, Count: 0, Kvs: nil}},
+					{name: "Empty range: degenerate [c, c)", begin: "c", options: config.GetOptions{End: "c"}, wantResponse: &clientv3.GetResponse{Header: currentHeader, Count: 0, Kvs: nil}},
+					{name: "Empty range: reversed [d, b)", begin: "d", options: config.GetOptions{End: "b"}, wantResponse: &clientv3.GetResponse{Header: currentHeader, Count: 0, Kvs: nil}},
 					{name: "blank key with --prefix option -> all KVs", begin: "", options: config.GetOptions{Prefix: true}, wantResponse: &clientv3.GetResponse{Header: currentHeader, Count: 6, Kvs: allKvs}},
 					{name: "blank key with --from-key option -> all KVs", begin: "", options: config.GetOptions{FromKey: true}, wantResponse: &clientv3.GetResponse{Header: currentHeader, Count: 6, Kvs: allKvs}},
 					{name: "Range covering all keys -> all KVs", begin: "a", options: config.GetOptions{End: "x"}, wantResponse: &clientv3.GetResponse{Header: currentHeader, Count: 6, Kvs: allKvs}},
@@ -141,6 +144,9 @@ func TestKVGet(t *testing.T) {
 				for _, otc := range tests {
 					if otc.options.CountOnly {
 						continue // can't use both --count-only and --keys-only at the same time
+					}
+					if len(otc.wantResponse.Kvs) == 0 {
+						continue // --keys-only is a no-op when there are no results
 					}
 					withKeysOnly := otc
 					withKeysOnly.name = fmt.Sprintf("%s --keys-only", withKeysOnly.name)
