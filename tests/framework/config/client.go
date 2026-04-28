@@ -43,6 +43,9 @@ type GetOptions struct {
 	MaxModRevision    int
 	MinCreateRevision int
 	MaxCreateRevision int
+	// Stream routes the request through the streaming RangeStream RPC and
+	// merges the response chunks. Only the integration backend supports it.
+	Stream bool
 }
 
 type PutOptions struct {

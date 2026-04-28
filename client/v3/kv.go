@@ -16,19 +16,24 @@ package clientv3
 
 import (
 	"context"
+	"errors"
+	"io"
 
+	"github.com/golang/protobuf/proto" //nolint:staticcheck // TODO: remove for a supported version
 	"google.golang.org/grpc"
 
 	pb "go.etcd.io/etcd/api/v3/etcdserverpb"
+	"go.etcd.io/etcd/api/v3/mvccpb"
 	"go.etcd.io/etcd/api/v3/v3rpc/rpctypes"
 )
 
 type (
-	CompactResponse pb.CompactionResponse
-	PutResponse     pb.PutResponse
-	GetResponse     pb.RangeResponse
-	DeleteResponse  pb.DeleteRangeResponse
-	TxnResponse     pb.TxnResponse
+	CompactResponse   pb.CompactionResponse
+	PutResponse       pb.PutResponse
+	GetResponse       pb.RangeResponse
+	GetStreamResponse <-chan RangeStreamResponse
+	DeleteResponse    pb.DeleteRangeResponse
+	TxnResponse       pb.TxnResponse
 )
 
 type KV interface {
@@ -48,6 +53,16 @@ type KV interface {
 	// When passed WithSort(), the keys will be sorted.
 	Get(ctx context.Context, key string, opts ...OpOption) (*GetResponse, error)
 
+	// RangeStream retrieves keys.
+	// By default, will return the value for "key", if any.
+	// When passed WithRange(end), will return the keys in the range [key, end).
+	// When passed WithFromKey(), returns keys greater than or equal to key.
+	// When passed WithRev(rev) with rev > 0, retrieves keys at the given revision;
+	// if the required revision is compacted, the request will fail with ErrCompacted .
+	// When passed WithLimit(limit), the number of returned keys is bounded by limit.
+	// When passed WithSort(), the keys will be sorted.
+	GetStream(ctx context.Context, key string, opts ...OpOption) (GetStreamResponse, error)
+
 	// Delete deletes a key, or optionally using WithRange(end), [key, end).
 	Delete(ctx context.Context, key string, opts ...OpOption) (*DeleteResponse, error)
 
@@ -63,6 +78,40 @@ type KV interface {
 
 	// Txn creates a transaction.
 	Txn(ctx context.Context) Txn
+}
+
+// RangeStreamResponse holds a single chunk from a RangeStream RPC. If the
+// stream terminates with a non-EOF error, a final RangeStreamResponse with a
+// non-nil Err() is sent before the channel is closed.
+type RangeStreamResponse struct {
+	Header *pb.ResponseHeader
+	Kvs    []*mvccpb.KeyValue
+	More   bool
+	Count  int64
+
+	closeErr error
+}
+
+// Err returns the error value if this RangeStreamResponse is the terminal
+// error response for a stream that failed mid-flight.
+func (r *RangeStreamResponse) Err() error {
+	return r.closeErr
+}
+
+func GetStreamToGetResponse(stream GetStreamResponse) (*GetResponse, error) {
+	resp := &pb.RangeResponse{}
+	for r := range stream {
+		if err := r.Err(); err != nil {
+			return nil, err
+		}
+		proto.Merge(resp, &pb.RangeResponse{
+			Header: r.Header,
+			Kvs:    r.Kvs,
+			More:   r.More,
+			Count:  r.Count,
+		})
+	}
+	return (*GetResponse)(resp), nil
 }
 
 type OpResponse struct {
@@ -122,6 +171,35 @@ func (kv *kv) Put(ctx context.Context, key, val string, opts ...OpOption) (*PutR
 func (kv *kv) Get(ctx context.Context, key string, opts ...OpOption) (*GetResponse, error) {
 	r, err := kv.Do(ctx, OpGet(key, opts...))
 	return r.get, ContextError(ctx, err)
+}
+
+func (kv *kv) GetStream(ctx context.Context, key string, opts ...OpOption) (GetStreamResponse, error) {
+	op := OpGet(key, opts...)
+	c, err := kv.remote.RangeStream(ctx, op.toRangeRequest(), kv.callOpts...)
+	if err != nil {
+		return nil, ContextError(ctx, err)
+	}
+	respCh := make(chan RangeStreamResponse, 1)
+	go func() {
+		defer close(respCh)
+		for {
+			resp, err := c.Recv()
+			if err != nil {
+				if !errors.Is(err, io.EOF) {
+					respCh <- RangeStreamResponse{closeErr: err}
+				}
+				return
+			}
+			rr := resp.RangeResponse
+			respCh <- RangeStreamResponse{
+				Header: rr.Header,
+				Kvs:    rr.Kvs,
+				More:   rr.More,
+				Count:  rr.Count,
+			}
+		}
+	}()
+	return respCh, nil
 }
 
 func (kv *kv) Delete(ctx context.Context, key string, opts ...OpOption) (*DeleteResponse, error) {

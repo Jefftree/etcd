@@ -24,6 +24,8 @@ import (
 var (
 	testRunner       intf.TestRunner
 	clusterTestCases func() []testCase
+	// supportsGetStream is set by the integration backend.
+	supportsGetStream bool
 )
 
 func TestMain(m *testing.M) {
