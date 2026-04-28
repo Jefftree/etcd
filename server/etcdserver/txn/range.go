@@ -17,6 +17,7 @@ package txn
 import (
 	"bytes"
 	"context"
+	"errors"
 	"math"
 	"sort"
 	"time"
@@ -104,6 +105,20 @@ func IsDefaultOrdering(sortTarget pb.RangeRequest_SortTarget, sortOrder pb.Range
 func HasRevisionFilters(r *pb.RangeRequest) bool {
 	return r.MinModRevision != 0 || r.MaxModRevision != 0 ||
 		r.MinCreateRevision != 0 || r.MaxCreateRevision != 0
+}
+
+// CheckRangeStreamSupported reports whether r is acceptable as a RangeStream
+// request. It returns nil when supported, or an error describing the
+// unsupported option. Callers in the RPC layer wrap the error with the
+// appropriate gRPC status code.
+func CheckRangeStreamSupported(r *pb.RangeRequest) error {
+	if !IsDefaultOrdering(r.SortTarget, r.SortOrder) {
+		return errors.New("RangeStream does not support custom sort orders")
+	}
+	if HasRevisionFilters(r) {
+		return errors.New("RangeStream does not support revision filters")
+	}
+	return nil
 }
 
 func filterRangeResults(rr *mvcc.RangeResult, r *pb.RangeRequest) {

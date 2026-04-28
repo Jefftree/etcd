@@ -170,11 +170,8 @@ func checkRangeStreamRequest(r *pb.RangeRequest) error {
 	if err := checkRangeRequest(r); err != nil {
 		return err
 	}
-	if !txn.IsDefaultOrdering(r.SortTarget, r.SortOrder) {
-		return status.Errorf(codes.Unimplemented, "RangeStream does not support custom sort orders")
-	}
-	if txn.HasRevisionFilters(r) {
-		return status.Errorf(codes.Unimplemented, "RangeStream does not support revision filters")
+	if err := txn.CheckRangeStreamSupported(r); err != nil {
+		return status.Error(codes.Unimplemented, err.Error())
 	}
 	return nil
 }
